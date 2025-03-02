@@ -37,15 +37,15 @@ jobs:
           sudo systemctl enable docker
 
           # Crear el directorio de la app si no existe
-          mkdir -p /home/${{ secrets.EC2_USERNAME }}/ms-login
-          cd /home/${{ secrets.EC2_USERNAME }}/ms-login
+          mkdir -p /home/${{ secrets.EC2_USERNAME }}/register_user
+          cd /home/${{ secrets.EC2_USERNAME }}/register_user
 
           echo "📦 Clonando o actualizando código fuente..."
-          if [ -d "ms-login" ]; then
-            cd ms-login && git reset --hard && git pull origin main
+          if [ -d "register_user" ]; then
+            cd register_user && git reset --hard && git pull origin main
           else
             git clone -b main https://github.com/argalarza/register_user.git register_user
-            cd ms-login
+            cd register_user
           fi
 
           echo "📑 Creando archivo .env en el servidor..."
