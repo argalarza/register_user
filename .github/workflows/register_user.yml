@@ -1,0 +1,70 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main  # SAsegúrate de cambiar esto si usas otra rama principal.
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 🚀 Checkout del código
+      uses: actions/checkout@v3
+
+    - name: 🔑 Acceder a EC2 y desplegar
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        script: |
+          echo "🚀 Iniciando despliegue en EC2..."
+
+          # Instalar git, docker y docker-compose si no están instalados
+          echo "🔧 Instalando dependencias necesarias..."
+          sudo yum update -y
+          sudo yum install -y git
+          sudo yum install -y docker
+
+          # Instalar Docker Compose manualmente
+          sudo curl -L https://github.com/docker/compose/releases/download/1.27.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+
+          # Iniciar Docker si no está corriendo
+          sudo service docker start
+          sudo systemctl enable docker
+
+          # Crear el directorio de la app si no existe
+          mkdir -p /home/${{ secrets.EC2_USERNAME }}/ms-login
+          cd /home/${{ secrets.EC2_USERNAME }}/ms-login
+
+          echo "📦 Clonando o actualizando código fuente..."
+          if [ -d "ms-login" ]; then
+            cd ms-login && git reset --hard && git pull origin main
+          else
+            git clone -b main https://github.com/argalarza/register_user.git register_user
+            cd ms-login
+          fi
+
+          echo "📑 Creando archivo .env en el servidor..."
+          cat <<EOF > .env
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          PORT=3001
+          EOF
+
+          echo "🛠️ Construyendo y levantando los contenedores..."
+          sudo docker-compose -f /home/ec2-user/register_user/register_user/docker-compose.yml down --remove-orphans
+          sudo docker-compose -f /home/ec2-user/register_user/register_user/docker-compose.yml up --build -d
+
+
+          echo "🔍 Verificando que el servicio está corriendo..."
+          sudo docker ps | grep register_user || { echo "⚠️ ERROR: El contenedor no se inició correctamente."; exit 1; }
+
+          echo "✅ Despliegue completado exitosamente."
