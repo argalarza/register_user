@@ -35,6 +35,11 @@ jobs:
           # Iniciar Docker si no está corriendo
           sudo service docker start
           sudo systemctl enable docker
+          # Crear la red de Docker si no existe
+          
+          if ! sudo docker network ls | grep -q "my_global_network"; then
+            sudo docker network create my_global_network
+          fi
 
           # Crear el directorio de la app si no existe
           mkdir -p /home/${{ secrets.EC2_USERNAME }}/register_user
